@@ -1,5 +1,5 @@
 const express = require('express')
-const { pool } = require('../db/pool')
+const skillRepository = require('../repositories/skillRepository')
 const { isUuid, isNonEmptyString } = require('../utils/validators')
 
 const router = express.Router()
@@ -7,9 +7,7 @@ const router = express.Router()
 // GET /api/coaches/skill：取得全部技能（不需登入）
 router.get('/', async (req, res, next) => {
   try {
-    const { rows } = await pool.query(
-      'SELECT id, name FROM skill ORDER BY created_at ASC'
-    )
+    const { rows } = await skillRepository.findAll()
     res.status(200).json({ status: 'success', data: rows })
   } catch (err) {
     next(err)
@@ -26,15 +24,12 @@ router.post('/', async (req, res, next) => {
     }
 
     const trimmed = name.trim()
-    const dup = await pool.query('SELECT id FROM skill WHERE name = $1', [trimmed])
+    const dup = await skillRepository.findIdByName(trimmed)
     if (dup.rowCount > 0) {
       return res.status(409).json({ status: 'failed', message: '資料重複' })
     }
 
-    const { rows } = await pool.query(
-      'INSERT INTO skill (name) VALUES ($1) RETURNING id, name, created_at',
-      [trimmed]
-    )
+    const { rows } = await skillRepository.insert(trimmed)
     const skill = rows[0]
     res.status(200).json({
       status: 'success',
@@ -54,7 +49,7 @@ router.delete('/:skillId', async (req, res, next) => {
       return res.status(400).json({ status: 'failed', message: 'ID錯誤' })
     }
 
-    const result = await pool.query('DELETE FROM skill WHERE id = $1', [skillId])
+    const result = await skillRepository.deleteById(skillId)
     if (result.rowCount === 0) {
       return res.status(400).json({ status: 'failed', message: 'ID錯誤' })
     }

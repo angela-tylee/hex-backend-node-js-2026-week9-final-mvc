@@ -1,5 +1,6 @@
 const express = require('express')
-const { pool } = require('../db/pool')
+const creditPackageRepository = require('../repositories/creditPackageRepository')
+const creditPurchaseRepository = require('../repositories/creditPurchaseRepository')
 const { authenticate } = require('../middlewares/auth')
 const { isUuid, isNonEmptyString, isNonNegativeInteger } = require('../utils/validators')
 
@@ -8,9 +9,7 @@ const router = express.Router()
 // GET /api/credit-package：取得全部購買方案（不需登入）
 router.get('/', async (req, res, next) => {
   try {
-    const { rows } = await pool.query(
-      'SELECT id, name, credit_amount, price FROM credit_package ORDER BY created_at ASC'
-    )
+    const { rows } = await creditPackageRepository.findAll()
     res.status(200).json({ status: 'success', data: rows })
   } catch (err) {
     next(err)
@@ -31,17 +30,12 @@ router.post('/', async (req, res, next) => {
     }
 
     const trimmed = name.trim()
-    const dup = await pool.query('SELECT id FROM credit_package WHERE name = $1', [trimmed])
+    const dup = await creditPackageRepository.findIdByName(trimmed)
     if (dup.rowCount > 0) {
       return res.status(409).json({ status: 'failed', message: '資料重複' })
     }
 
-    const { rows } = await pool.query(
-      `INSERT INTO credit_package (name, credit_amount, price)
-       VALUES ($1, $2, $3)
-       RETURNING id, name, credit_amount, price, created_at`,
-      [trimmed, creditAmount, price]
-    )
+    const { rows } = await creditPackageRepository.insert(trimmed, creditAmount, price)
     const pkg = rows[0]
     res.status(200).json({
       status: 'success',
@@ -68,19 +62,17 @@ router.post('/:creditPackageId', authenticate, async (req, res, next) => {
       return res.status(400).json({ status: 'failed', message: 'ID錯誤' })
     }
 
-    const { rows } = await pool.query(
-      'SELECT credit_amount, price FROM credit_package WHERE id = $1',
-      [creditPackageId]
-    )
+    const { rows } = await creditPackageRepository.findCreditAndPriceById(creditPackageId)
     if (rows.length === 0) {
       return res.status(400).json({ status: 'failed', message: 'ID錯誤' })
     }
 
     const pkg = rows[0]
-    await pool.query(
-      `INSERT INTO credit_purchase (user_id, credit_package_id, purchased_credits, price_paid)
-       VALUES ($1, $2, $3, $4)`,
-      [req.user.id, creditPackageId, pkg.credit_amount, pkg.price]
+    await creditPurchaseRepository.insert(
+      req.user.id,
+      creditPackageId,
+      pkg.credit_amount,
+      pkg.price
     )
 
     res.status(200).json({ status: 'success', data: null })
@@ -98,9 +90,7 @@ router.delete('/:creditPackageId', async (req, res, next) => {
       return res.status(400).json({ status: 'failed', message: 'ID錯誤' })
     }
 
-    const result = await pool.query('DELETE FROM credit_package WHERE id = $1', [
-      creditPackageId,
-    ])
+    const result = await creditPackageRepository.deleteById(creditPackageId)
     if (result.rowCount === 0) {
       return res.status(400).json({ status: 'failed', message: 'ID錯誤' })
     }
