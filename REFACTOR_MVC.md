@@ -60,43 +60,49 @@ backend/
 3. **Helpers → services/utils.** Move the helper functions and constants verbatim and replace them with `require`s. For `creditService` and `revenueService`, the controller's inline computation block becomes one call that returns the same variables (for example `const creditRemain = await creditService.getCreditRemain(req.user.id, client)`).
 4. **Keep inline comments** (for example the ①②③④ check-order notes) with the code they describe.
 
-## Execution: one small move per commit
-The project root is **not a git repo yet**, so step 0 creates one. Each later step moves exactly one kind of block (SQL, then handlers, then helpers) for one resource. The listed test suite must pass before that commit. Commit subjects use conventional commits; each body is a short paragraph plus bullets, not hard-wrapped, ending with the Co-Authored-By trailer.
+## Execution: one small move per step, committed by the user
+Each step moves exactly one kind of block (SQL, then handlers, then helpers) for one resource. **Claude never runs `git commit` or `git push`.** After each step Claude:
+
+1. makes the edits and ticks the step `- [x]` here;
+2. runs the listed checks and reports the results;
+3. stops, leaving the changes **uncommitted**, and suggests a commit message (conventional-commits subject plus a short body).
+
+The user reviews the diff (`git diff`), commits, and then asks for the next step. The listed test suite should pass before the user commits.
 
 **Phase 0: Baseline**
-- [x] 0.1 `git init`, check that `.gitignore` covers `node_modules` and `.env`, commit the untouched project. Subject: `chore: initial commit of week9 final project`
+- [x] 0.1 `git init`, check that `.gitignore` covers `node_modules` and `.env`, commit the untouched project. Suggested subject: `chore: initial commit of week9 final project`
 
 **Phase 1: Scaffolding (no behavior change)**
-- [x] 1.1 Create `controllers/`, `services/` and `repositories/`, each with a `.gitkeep` (git doesn't track empty folders). Subject: `chore(backend): scaffold controllers, services, repositories folders`
+- [x] 1.1 Create `controllers/`, `services/` and `repositories/`, each with a `.gitkeep` (git doesn't track empty folders). Suggested subject: `chore(backend): scaffold controllers, services, repositories folders`
 - [ ] 1.2 Move the shared constants and helpers verbatim, and switch the route files to `require` them:
   - `FIELD_ERROR` and `COACH_NOT_FOUND` → `utils/messages.js`
   - `validateCourseBody` and `parseNonNegativeInt` → `utils/validators.js`
   - `serializeCourse` → `utils/serializers.js`
 
-  Run `npm test`, then commit. Subject: `refactor(backend): move shared constants and helpers into utils`
+  Run `npm test`, then stop for the user to review and commit. Suggested subject: `refactor(backend): move shared constants and helpers into utils`
 
 **Phase 2: M0/M1 (healthcheck, skill, credit package)**
-- [ ] 2.1 SQL → `repositories/skillRepository.js`, `creditPackageRepository.js`, `creditPurchaseRepository.js` (the purchase INSERT). Healthcheck's `SELECT 1` stays as `pool.query` in its controller, because it is an infrastructure ping. Run `test:smoke` and `test:m1`, then commit. Subject: `refactor(backend): extract skill and credit-package SQL into repositories`
-- [ ] 2.2 Handlers → `controllers/healthcheckController.js`, `skillController.js`, `creditPackageController.js`; the routes keep only wiring. Run `test:smoke`, `test:m1` and `test:m5` (purchase), then commit. Subject: `refactor(backend): move skill and credit-package handlers into controllers`
+- [ ] 2.1 SQL → `repositories/skillRepository.js`, `creditPackageRepository.js`, `creditPurchaseRepository.js` (the purchase INSERT). Healthcheck's `SELECT 1` stays as `pool.query` in its controller, because it is an infrastructure ping. Run `test:smoke` and `test:m1`, then stop for the user to review and commit. Suggested subject: `refactor(backend): extract skill and credit-package SQL into repositories`
+- [ ] 2.2 Handlers → `controllers/healthcheckController.js`, `skillController.js`, `creditPackageController.js`; the routes keep only wiring. Run `test:smoke`, `test:m1` and `test:m5` (purchase), then stop for the user to review and commit. Suggested subject: `refactor(backend): move skill and credit-package handlers into controllers`
 
 **Phase 3: M2 (user)**
-- [ ] 3.1 user.js SQL → `userRepository.js`; user credit and booking queries → `creditPurchaseRepository` and `courseBookingRepository`. Run `test:m2` and `test:m5`, then commit.
-- [ ] 3.2 user handlers → `userController.js`. Run `test:m2` and `test:m5`, then commit.
-- [ ] 3.3 `middlewares/auth.js` users lookup → `userRepository.findAuthById`. Run `npm test`, then commit.
+- [ ] 3.1 user.js SQL → `userRepository.js`; user credit and booking queries → `creditPurchaseRepository` and `courseBookingRepository`. Run `test:m2` and `test:m5`, then stop for the user to review and commit.
+- [ ] 3.2 user handlers → `userController.js`. Run `test:m2` and `test:m5`, then stop for the user to review and commit.
+- [ ] 3.3 `middlewares/auth.js` users lookup → `userRepository.findAuthById`. Run `npm test`, then stop for the user to review and commit.
 
 **Phase 4: M3/M6 (admin coach, the largest file)**
-- [ ] 4.1 adminCoach.js SQL → `coachRepository.js` and `courseRepository.js`, with the transaction `client` passed through. Run `test:m3` and `test:m6`, then commit.
-- [ ] 4.2 `getSkillIds` → `services/coachSkillService.js`. Run `test:m3`, then commit.
-- [ ] 4.3 Revenue month range, per-credit price and floor rule → `services/revenueService.js`. Run `test:m6`, then commit.
-- [ ] 4.4 adminCoach handlers → `adminCoachController.js`, keeping the route order (`POST /:userId` last). Run `test:m3` and `test:m6`, then commit.
+- [ ] 4.1 adminCoach.js SQL → `coachRepository.js` and `courseRepository.js`, with the transaction `client` passed through. Run `test:m3` and `test:m6`, then stop for the user to review and commit.
+- [ ] 4.2 `getSkillIds` → `services/coachSkillService.js`. Run `test:m3`, then stop for the user to review and commit.
+- [ ] 4.3 Revenue month range, per-credit price and floor rule → `services/revenueService.js`. Run `test:m6`, then stop for the user to review and commit.
+- [ ] 4.4 adminCoach handlers → `adminCoachController.js`, keeping the route order (`POST /:userId` last). Run `test:m3` and `test:m6`, then stop for the user to review and commit.
 
 **Phase 5: M4/M5 (public coach, courses, booking)**
-- [ ] 5.1 coach.js and course.js SQL → `coachRepository`, `courseRepository` and `courseBookingRepository`. Run `test:m4` and `test:m5`, then commit.
-- [ ] 5.2 Duplicated remaining-credits block (course.js and user.js) → `services/creditService.getCreditRemain(userId, db)`. Run `test:m5`, then commit.
-- [ ] 5.3 coach and course handlers → `coachController.js` and `courseController.js`. Run `test:m4` and `test:m5`, then commit.
+- [ ] 5.1 coach.js and course.js SQL → `coachRepository`, `courseRepository` and `courseBookingRepository`. Run `test:m4` and `test:m5`, then stop for the user to review and commit.
+- [ ] 5.2 Duplicated remaining-credits block (course.js and user.js) → `services/creditService.getCreditRemain(userId, db)`. Run `test:m5`, then stop for the user to review and commit.
+- [ ] 5.3 coach and course handlers → `coachController.js` and `courseController.js`. Run `test:m4` and `test:m5`, then stop for the user to review and commit.
 
 **Phase 6: Cleanup**
-- [ ] 6.1 Remove `.gitkeep` files from folders that now have content, and remove any `pool` imports that are no longer used. Run the grep checks below and the full `npm test`, then commit. Subject: `chore(backend): remove placeholders and unused imports`
+- [ ] 6.1 Remove `.gitkeep` files from folders that now have content, and remove any `pool` imports that are no longer used. Run the grep checks below and the full `npm test`, then stop for the user to review and commit. Suggested subject: `chore(backend): remove placeholders and unused imports`
 
 ## Verification
 1. Run `npm run db:reset`, then `npm --prefix backend run dev` (server on :8080).
