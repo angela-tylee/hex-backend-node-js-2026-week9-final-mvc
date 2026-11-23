@@ -64,10 +64,10 @@ backend/
 The project root is **not a git repo yet**, so step 0 creates one. Each later step moves exactly one kind of block (SQL, then handlers, then helpers) for one resource. The listed test suite must pass before that commit. Commit subjects use conventional commits; each body is a short paragraph plus bullets, not hard-wrapped, ending with the Co-Authored-By trailer.
 
 **Phase 0: Baseline**
-- [ ] 0.1 `git init`, check that `.gitignore` covers `node_modules` and `.env`, commit the untouched project. Subject: `chore: initial commit of week9 final project`
+- [x] 0.1 `git init`, check that `.gitignore` covers `node_modules` and `.env`, commit the untouched project. Subject: `chore: initial commit of week9 final project`
 
 **Phase 1: Scaffolding (no behavior change)**
-- [ ] 1.1 Create `controllers/`, `services/` and `repositories/`, each with a `.gitkeep` (git doesn't track empty folders). Subject: `chore(backend): scaffold controllers, services, repositories folders`
+- [x] 1.1 Create `controllers/`, `services/` and `repositories/`, each with a `.gitkeep` (git doesn't track empty folders). Subject: `chore(backend): scaffold controllers, services, repositories folders`
 - [ ] 1.2 Move the shared constants and helpers verbatim, and switch the route files to `require` them:
   - `FIELD_ERROR` and `COACH_NOT_FOUND` → `utils/messages.js`
   - `validateCourseBody` and `parseNonNegativeInt` → `utils/validators.js`
