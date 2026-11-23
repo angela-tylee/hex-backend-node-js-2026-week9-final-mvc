@@ -1,19 +1,10 @@
 const express = require('express')
 
 const { pool } = require('../db/pool')
-const { isUuid } = require('../utils/validators')
+const { isUuid, parseNonNegativeInt } = require('../utils/validators')
+const { FIELD_ERROR, COACH_NOT_FOUND } = require('../utils/messages')
 
 const router = express.Router()
-
-const FIELD_ERROR = '欄位未填寫正確'
-const COACH_NOT_FOUND = '找不到該教練'
-
-/** 可轉成非負整數的字串（例如 "6"、"0"）；"test"、"-1"、"1.5"、空字串都不算 */
-function parseNonNegativeInt(value) {
-  if (typeof value !== 'string' || value.trim() === '') return null
-  if (!/^\d+$/.test(value.trim())) return null
-  return Number(value.trim())
-}
 
 // GET /api/coaches：教練分頁列表（公開，per 與 page 必填）
 router.get('/', async (req, res, next) => {

@@ -74,7 +74,7 @@ The user reviews the diff (`git diff`), commits, and then asks for the next step
 
 **Phase 1: Scaffolding (no behavior change)**
 - [x] 1.1 Create `controllers/`, `services/` and `repositories/`, each with a `.gitkeep` (git doesn't track empty folders). Suggested subject: `chore(backend): scaffold controllers, services, repositories folders`
-- [ ] 1.2 Move the shared constants and helpers verbatim, and switch the route files to `require` them:
+- [x] 1.2 Move the shared constants and helpers verbatim, and switch the route files to `require` them:
   - `FIELD_ERROR` and `COACH_NOT_FOUND` → `utils/messages.js`
   - `validateCourseBody` and `parseNonNegativeInt` → `utils/validators.js`
   - `serializeCourse` → `utils/serializers.js`

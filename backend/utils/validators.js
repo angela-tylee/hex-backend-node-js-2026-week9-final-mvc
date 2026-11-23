@@ -1,4 +1,6 @@
-const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+const { FIELD_ERROR } = require('./messages')
+
+const UUID_RE =/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
 function isUuid(value) {
   return typeof value === 'string' && UUID_RE.test(value)
@@ -30,6 +32,42 @@ function isValidPassword(value) {
   return /[a-z]/.test(value) && /[A-Z]/.test(value) && /\d/.test(value)
 }
 
+/** 驗證開課／改課共用的課程欄位，合法回 null，不合法回錯誤訊息 */
+function validateCourseBody(body) {
+  const {
+    skill_id: skillId,
+    name,
+    description,
+    start_at: startAt,
+    end_at: endAt,
+    max_participants: maxParticipants,
+    meeting_url: meetingUrl,
+  } = body
+
+  if (
+    !isUuid(skillId) ||
+    !isNonEmptyString(name) ||
+    !isNonEmptyString(description) ||
+    !isNonEmptyString(startAt) ||
+    !isNonEmptyString(endAt) ||
+    !isNonNegativeInteger(maxParticipants) ||
+    !isHttpsUrl(meetingUrl)
+  ) {
+    return FIELD_ERROR
+  }
+  if (Number.isNaN(Date.parse(startAt)) || Number.isNaN(Date.parse(endAt))) {
+    return FIELD_ERROR
+  }
+  return null
+}
+
+/** 可轉成非負整數的字串（例如 "6"、"0"）；"test"、"-1"、"1.5"、空字串都不算 */
+function parseNonNegativeInt(value) {
+  if (typeof value !== 'string' || value.trim() === '') return null
+  if (!/^\d+$/.test(value.trim())) return null
+  return Number(value.trim())
+}
+
 module.exports = {
   isUuid,
   isNonEmptyString,
@@ -37,4 +75,6 @@ module.exports = {
   isHttpsUrl,
   isValidPassword,
   PASSWORD_RULE_MESSAGE,
+  validateCourseBody,
+  parseNonNegativeInt,
 }

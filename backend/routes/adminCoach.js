@@ -7,11 +7,12 @@ const {
   isNonEmptyString,
   isNonNegativeInteger,
   isHttpsUrl,
+  validateCourseBody,
 } = require('../utils/validators')
+const { FIELD_ERROR } = require('../utils/messages')
+const { serializeCourse } = require('../utils/serializers')
 
 const router = express.Router()
-
-const FIELD_ERROR = '欄位未填寫正確'
 
 /** 取出某教練綁定的技能 id 清單（uuid 字串陣列，未設定時為空陣列） */
 async function getSkillIds(coachId) {
@@ -24,51 +25,6 @@ async function getSkillIds(coachId) {
     [coachId]
   )
   return rows.map((r) => r.skill_id)
-}
-
-/** 驗證開課／改課共用的課程欄位，合法回 null，不合法回錯誤訊息 */
-function validateCourseBody(body) {
-  const {
-    skill_id: skillId,
-    name,
-    description,
-    start_at: startAt,
-    end_at: endAt,
-    max_participants: maxParticipants,
-    meeting_url: meetingUrl,
-  } = body
-
-  if (
-    !isUuid(skillId) ||
-    !isNonEmptyString(name) ||
-    !isNonEmptyString(description) ||
-    !isNonEmptyString(startAt) ||
-    !isNonEmptyString(endAt) ||
-    !isNonNegativeInteger(maxParticipants) ||
-    !isHttpsUrl(meetingUrl)
-  ) {
-    return FIELD_ERROR
-  }
-  if (Number.isNaN(Date.parse(startAt)) || Number.isNaN(Date.parse(endAt))) {
-    return FIELD_ERROR
-  }
-  return null
-}
-
-function serializeCourse(row) {
-  return {
-    id: row.id,
-    user_id: row.user_id,
-    skill_id: row.skill_id,
-    name: row.name,
-    description: row.description,
-    start_at: row.start_at,
-    end_at: row.end_at,
-    max_participants: row.max_participants,
-    meeting_url: row.meeting_url,
-    created_at: row.created_at,
-    updated_at: row.updated_at,
-  }
 }
 
 // ============================================================
