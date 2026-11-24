@@ -1,6 +1,8 @@
 const express = require('express')
 
-const { pool } = require('../db/pool')
+const coachRepository = require('../repositories/coachRepository')
+const coachSkillRepository = require('../repositories/coachSkillRepository')
+const courseRepository = require('../repositories/courseRepository')
 const { isUuid, parseNonNegativeInt } = require('../utils/validators')
 const { FIELD_ERROR, COACH_NOT_FOUND } = require('../utils/messages')
 
@@ -16,14 +18,7 @@ router.get('/', async (req, res, next) => {
     }
 
     const offset = Math.max(0, (page - 1) * per)
-    const { rows } = await pool.query(
-      `SELECT c.id, c.user_id, u.name
-         FROM coach c
-         JOIN users u ON u.id = c.user_id
-        ORDER BY c.created_at ASC
-        LIMIT $1 OFFSET $2`,
-      [per, offset]
-    )
+    const { rows } = await coachRepository.findPage(per, offset)
 
     res.status(200).json({
       status: 'success',
@@ -46,28 +41,13 @@ router.get('/:coachId', async (req, res, next) => {
       return res.status(400).json({ status: 'failed', message: FIELD_ERROR })
     }
 
-    const { rows } = await pool.query(
-      `SELECT c.id, c.user_id, c.experience_years, c.description,
-              c.profile_image_url, c.created_at, c.updated_at,
-              u.name AS user_name, u.role AS user_role
-         FROM coach c
-         JOIN users u ON u.id = c.user_id
-        WHERE c.id = $1`,
-      [coachId]
-    )
+    const { rows } = await coachRepository.findDetailById(coachId)
     if (rows.length === 0) {
       return res.status(400).json({ status: 'failed', message: COACH_NOT_FOUND })
     }
     const row = rows[0]
 
-    const { rows: skillRows } = await pool.query(
-      `SELECT s.name
-         FROM coach_skill cs
-         JOIN skill s ON s.id = cs.skill_id
-        WHERE cs.coach_id = $1
-        ORDER BY s.created_at ASC`,
-      [coachId]
-    )
+    const { rows: skillRows } = await coachSkillRepository.findSkillNamesByCoachId(coachId)
 
     res.status(200).json({
       status: 'success',
@@ -98,22 +78,12 @@ router.get('/:coachId/courses', async (req, res, next) => {
       return res.status(400).json({ status: 'failed', message: FIELD_ERROR })
     }
 
-    const coachRes = await pool.query('SELECT id FROM coach WHERE id = $1', [coachId])
+    const coachRes = await coachRepository.findIdById(coachId)
     if (coachRes.rowCount === 0) {
       return res.status(400).json({ status: 'failed', message: COACH_NOT_FOUND })
     }
 
-    const { rows } = await pool.query(
-      `SELECT co.id, co.name, co.description, co.start_at, co.end_at,
-              co.max_participants, u.name AS coach_name, s.name AS skill_name
-         FROM course co
-         JOIN coach c ON c.user_id = co.user_id
-         JOIN users u ON u.id = co.user_id
-         JOIN skill s ON s.id = co.skill_id
-        WHERE c.id = $1 AND co.end_at > now()
-        ORDER BY co.start_at ASC`,
-      [coachId]
-    )
+    const { rows } = await courseRepository.findUpcomingByCoachId(coachId)
 
     res.status(200).json({
       status: 'success',

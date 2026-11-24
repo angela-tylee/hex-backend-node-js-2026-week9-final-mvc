@@ -41,4 +41,42 @@ function insert(userId, experienceYears, description, profileImageUrl, db = pool
   )
 }
 
-module.exports = { findProfileByUserId, findIdByUserId, updateProfile, insert }
+/** 公開教練列表：分頁，附使用者名稱 */
+function findPage(per, offset, db = pool) {
+  return db.query(
+    `SELECT c.id, c.user_id, u.name
+         FROM coach c
+         JOIN users u ON u.id = c.user_id
+        ORDER BY c.created_at ASC
+        LIMIT $1 OFFSET $2`,
+    [per, offset]
+  )
+}
+
+/** 公開教練詳情：附使用者名稱與 role */
+function findDetailById(coachId, db = pool) {
+  return db.query(
+    `SELECT c.id, c.user_id, c.experience_years, c.description,
+              c.profile_image_url, c.created_at, c.updated_at,
+              u.name AS user_name, u.role AS user_role
+         FROM coach c
+         JOIN users u ON u.id = c.user_id
+        WHERE c.id = $1`,
+    [coachId]
+  )
+}
+
+/** 檢查教練是否存在 */
+function findIdById(coachId, db = pool) {
+  return db.query('SELECT id FROM coach WHERE id = $1', [coachId])
+}
+
+module.exports = {
+  findProfileByUserId,
+  findIdByUserId,
+  updateProfile,
+  insert,
+  findPage,
+  findDetailById,
+  findIdById,
+}

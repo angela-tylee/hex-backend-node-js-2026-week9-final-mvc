@@ -28,4 +28,16 @@ function insertMany(coachId, skillIds, db = pool) {
   )
 }
 
-module.exports = { findSkillIdsByCoachId, deleteByCoachId, insertMany }
+/** 公開教練詳情用：某教練綁定的技能名稱，依技能建立時間排序 */
+function findSkillNamesByCoachId(coachId, db = pool) {
+  return db.query(
+    `SELECT s.name
+         FROM coach_skill cs
+         JOIN skill s ON s.id = cs.skill_id
+        WHERE cs.coach_id = $1
+        ORDER BY s.created_at ASC`,
+    [coachId]
+  )
+}
+
+module.exports = { findSkillIdsByCoachId, deleteByCoachId, insertMany, findSkillNamesByCoachId }

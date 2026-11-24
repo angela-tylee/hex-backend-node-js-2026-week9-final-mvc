@@ -68,10 +68,49 @@ function update(
   )
 }
 
+/** 公開：指定教練「未結束」的課程（end_at > now），附教練與技能名稱 */
+function findUpcomingByCoachId(coachId, db = pool) {
+  return db.query(
+    `SELECT co.id, co.name, co.description, co.start_at, co.end_at,
+              co.max_participants, u.name AS coach_name, s.name AS skill_name
+         FROM course co
+         JOIN coach c ON c.user_id = co.user_id
+         JOIN users u ON u.id = co.user_id
+         JOIN skill s ON s.id = co.skill_id
+        WHERE c.id = $1 AND co.end_at > now()
+        ORDER BY co.start_at ASC`,
+    [coachId]
+  )
+}
+
+/** 公開：全站「進行中」的課程（start_at <= now < end_at），附教練與技能名稱 */
+function findOngoing(db = pool) {
+  return db.query(
+    `SELECT co.id, co.name, co.description, co.start_at, co.end_at,
+              co.max_participants, u.name AS coach_name, s.name AS skill_name
+         FROM course co
+         JOIN users u ON u.id = co.user_id
+         JOIN skill s ON s.id = co.skill_id
+        WHERE co.start_at <= now() AND now() < co.end_at
+        ORDER BY co.start_at ASC`
+  )
+}
+
+/** 報名用：鎖住課程列（FOR UPDATE），需在交易中以 client 呼叫 */
+function findForUpdateById(courseId, db = pool) {
+  return db.query(
+    'SELECT id, max_participants FROM course WHERE id = $1 FOR UPDATE',
+    [courseId]
+  )
+}
+
 module.exports = {
   findAllByCoachUserId,
   insert,
   findDetailByIdAndUserId,
   findIdByIdAndUserId,
   update,
+  findUpcomingByCoachId,
+  findOngoing,
+  findForUpdateById,
 }

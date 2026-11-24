@@ -97,7 +97,7 @@ The user reviews the diff (`git diff`), commits, and then asks for the next step
 - [x] 4.4 adminCoach handlers → `adminCoachController.js`, keeping the route order (`POST /:userId` last). Run `test:m3` and `test:m6`, then stop for the user to review and commit.
 
 **Phase 5: M4/M5 (public coach, courses, booking)**
-- [ ] 5.1 coach.js and course.js SQL → `coachRepository`, `courseRepository` and `courseBookingRepository`. Run `test:m4` and `test:m5`, then stop for the user to review and commit.
+- [x] 5.1 coach.js and course.js SQL → `coachRepository`, `courseRepository` and `courseBookingRepository`. Run `test:m4` and `test:m5`, then stop for the user to review and commit.
 - [ ] 5.2 Duplicated remaining-credits block (course.js and user.js) → `services/creditService.getCreditRemain(userId, db)`. Run `test:m5`, then stop for the user to review and commit.
 - [ ] 5.3 coach and course handlers → `coachController.js` and `courseController.js`. Run `test:m4` and `test:m5`, then stop for the user to review and commit.
 

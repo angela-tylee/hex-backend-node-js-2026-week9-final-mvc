@@ -1,6 +1,9 @@
 const express = require('express')
 
 const { pool } = require('../db/pool')
+const courseRepository = require('../repositories/courseRepository')
+const courseBookingRepository = require('../repositories/courseBookingRepository')
+const creditPurchaseRepository = require('../repositories/creditPurchaseRepository')
 const { authenticate } = require('../middlewares/auth')
 const { isUuid } = require('../utils/validators')
 
@@ -9,15 +12,7 @@ const router = express.Router()
 // GET /api/courses：全站「進行中」的課程（start_at <= now < end_at）
 router.get('/', async (req, res, next) => {
   try {
-    const { rows } = await pool.query(
-      `SELECT co.id, co.name, co.description, co.start_at, co.end_at,
-              co.max_participants, u.name AS coach_name, s.name AS skill_name
-         FROM course co
-         JOIN users u ON u.id = co.user_id
-         JOIN skill s ON s.id = co.skill_id
-        WHERE co.start_at <= now() AND now() < co.end_at
-        ORDER BY co.start_at ASC`
-    )
+    const { rows } = await courseRepository.findOngoing()
 
     res.status(200).json({
       status: 'success',
@@ -50,19 +45,17 @@ router.post('/:courseId', authenticate, async (req, res, next) => {
 
     await client.query('BEGIN')
 
-    const courseRes = await client.query(
-      'SELECT id, max_participants FROM course WHERE id = $1 FOR UPDATE',
-      [courseId]
-    )
+    const courseRes = await courseRepository.findForUpdateById(courseId, client)
     if (courseRes.rows.length === 0) {
       await client.query('ROLLBACK')
       return res.status(400).json({ status: 'failed', message: 'ID錯誤' })
     }
 
     // ② 已有報名紀錄（包含已取消的）
-    const bookedRes = await client.query(
-      'SELECT id FROM course_booking WHERE user_id = $1 AND course_id = $2',
-      [req.user.id, courseId]
+    const bookedRes = await courseBookingRepository.findIdByUserIdAndCourseId(
+      req.user.id,
+      courseId,
+      client
     )
     if (bookedRes.rows.length > 0) {
       await client.query('ROLLBACK')
@@ -70,14 +63,8 @@ router.post('/:courseId', authenticate, async (req, res, next) => {
     }
 
     // ③ 剩餘堂數 ＝ Σ購買堂數 − 未取消報名數
-    const purchaseRes = await client.query(
-      'SELECT COALESCE(SUM(purchased_credits), 0) AS total FROM credit_purchase WHERE user_id = $1',
-      [req.user.id]
-    )
-    const usageRes = await client.query(
-      'SELECT COUNT(*) AS used FROM course_booking WHERE user_id = $1 AND cancelled_at IS NULL',
-      [req.user.id]
-    )
+    const purchaseRes = await creditPurchaseRepository.sumCreditsByUserId(req.user.id, client)
+    const usageRes = await courseBookingRepository.countActiveByUserId(req.user.id, client)
     const creditRemain = Number(purchaseRes.rows[0].total) - Number(usageRes.rows[0].used)
     if (creditRemain <= 0) {
       await client.query('ROLLBACK')
@@ -85,19 +72,13 @@ router.post('/:courseId', authenticate, async (req, res, next) => {
     }
 
     // ④ 名額上限（只算未取消的有效報名）
-    const countRes = await client.query(
-      'SELECT COUNT(*) AS taken FROM course_booking WHERE course_id = $1 AND cancelled_at IS NULL',
-      [courseId]
-    )
+    const countRes = await courseBookingRepository.countActiveByCourseId(courseId, client)
     if (Number(countRes.rows[0].taken) >= courseRes.rows[0].max_participants) {
       await client.query('ROLLBACK')
       return res.status(400).json({ status: 'failed', message: '已達最大參加人數，無法參加' })
     }
 
-    await client.query(
-      'INSERT INTO course_booking (user_id, course_id) VALUES ($1, $2)',
-      [req.user.id, courseId]
-    )
+    await courseBookingRepository.insert(req.user.id, courseId, client)
     await client.query('COMMIT')
 
     res.status(201).json({ status: 'success', data: null })
@@ -118,12 +99,7 @@ router.delete('/:courseId', authenticate, async (req, res, next) => {
       return res.status(400).json({ status: 'failed', message: 'ID錯誤' })
     }
 
-    const result = await pool.query(
-      `UPDATE course_booking
-          SET cancelled_at = now()
-        WHERE user_id = $1 AND course_id = $2 AND cancelled_at IS NULL`,
-      [req.user.id, courseId]
-    )
+    const result = await courseBookingRepository.cancel(req.user.id, courseId)
     if (result.rowCount === 0) {
       return res.status(400).json({ status: 'failed', message: 'ID錯誤' })
     }

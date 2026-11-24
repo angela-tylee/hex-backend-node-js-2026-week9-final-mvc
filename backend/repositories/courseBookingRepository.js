@@ -46,4 +46,45 @@ function countActiveForCoachInRange(coachUserId, rangeStart, rangeEnd, db = pool
   )
 }
 
-module.exports = { countActiveByUserId, findScheduleByUserId, countActiveForCoachInRange }
+/** 報名用：該會員對該課程是否已有報名紀錄（包含已取消的） */
+function findIdByUserIdAndCourseId(userId, courseId, db = pool) {
+  return db.query(
+    'SELECT id FROM course_booking WHERE user_id = $1 AND course_id = $2',
+    [userId, courseId]
+  )
+}
+
+/** 報名用：課程目前的有效報名數（只算未取消的） */
+function countActiveByCourseId(courseId, db = pool) {
+  return db.query(
+    'SELECT COUNT(*) AS taken FROM course_booking WHERE course_id = $1 AND cancelled_at IS NULL',
+    [courseId]
+  )
+}
+
+function insert(userId, courseId, db = pool) {
+  return db.query(
+    'INSERT INTO course_booking (user_id, course_id) VALUES ($1, $2)',
+    [userId, courseId]
+  )
+}
+
+/** 取消報名（軟刪除）：只會影響尚未取消的那一筆 */
+function cancel(userId, courseId, db = pool) {
+  return db.query(
+    `UPDATE course_booking
+          SET cancelled_at = now()
+        WHERE user_id = $1 AND course_id = $2 AND cancelled_at IS NULL`,
+    [userId, courseId]
+  )
+}
+
+module.exports = {
+  countActiveByUserId,
+  findScheduleByUserId,
+  countActiveForCoachInRange,
+  findIdByUserIdAndCourseId,
+  countActiveByCourseId,
+  insert,
+  cancel,
+}
