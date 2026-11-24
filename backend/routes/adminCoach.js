@@ -4,10 +4,10 @@ const { pool } = require('../db/pool')
 const coachRepository = require('../repositories/coachRepository')
 const coachSkillRepository = require('../repositories/coachSkillRepository')
 const courseRepository = require('../repositories/courseRepository')
-const courseBookingRepository = require('../repositories/courseBookingRepository')
-const creditPackageRepository = require('../repositories/creditPackageRepository')
 const skillRepository = require('../repositories/skillRepository')
 const userRepository = require('../repositories/userRepository')
+const { getSkillIds } = require('../services/coachSkillService')
+const { MONTH_NAMES, getMonthlyRevenue } = require('../services/revenueService')
 const { authenticate, requireCoach } = require('../middlewares/auth')
 const {
   isUuid,
@@ -20,12 +20,6 @@ const { FIELD_ERROR } = require('../utils/messages')
 const { serializeCourse } = require('../utils/serializers')
 
 const router = express.Router()
-
-/** 取出某教練綁定的技能 id 清單（uuid 字串陣列，未設定時為空陣列） */
-async function getSkillIds(coachId) {
-  const { rows } = await coachSkillRepository.findSkillIdsByCoachId(coachId)
-  return rows.map((r) => r.skill_id)
-}
 
 // ============================================================
 // 教練個人資料
@@ -279,11 +273,6 @@ router.put('/courses/:courseId', authenticate, async (req, res, next) => {
 // 月營收統計（M6，挑戰）
 // ============================================================
 
-const MONTH_NAMES = [
-  'january', 'february', 'march', 'april', 'may', 'june',
-  'july', 'august', 'september', 'october', 'november', 'december',
-]
-
 // GET /api/admin/coaches/revenue?month=<英文小寫月份名>
 // 隱形語意：
 //  ① 一筆報名算進哪個月，看 course_booking.created_at（報名建立時間），不是上課時間
@@ -297,27 +286,10 @@ router.get('/revenue', authenticate, requireCoach, async (req, res, next) => {
       return res.status(400).json({ status: 'failed', message: FIELD_ERROR })
     }
 
-    const now = new Date()
-    const rangeStart = new Date(now.getFullYear(), monthIndex, 1, 0, 0, 0, 0)
-    const rangeEnd = new Date(now.getFullYear(), monthIndex + 1, 1, 0, 0, 0, 0)
-
-    // 當月、未取消、且課程屬於本教練的報名
-    const bookingRes = await courseBookingRepository.countActiveForCoachInRange(
+    const { revenue, participants, bookingCount } = await getMonthlyRevenue(
       req.user.id,
-      rangeStart,
-      rangeEnd
+      monthIndex
     )
-    const bookingCount = Number(bookingRes.rows[0].booking_count)
-    const participants = Number(bookingRes.rows[0].participants)
-
-    // 單堂均價：全部方案一起算
-    const pkgRes = await creditPackageRepository.sumPriceAndCredits()
-    const totalCredits = Number(pkgRes.rows[0].total_credits)
-    const perCreditPrice =
-      totalCredits > 0 ? Number(pkgRes.rows[0].total_price) / totalCredits : 0
-
-    // floor 放在最後一步：先乘再無條件捨去
-    const revenue = Math.floor(bookingCount * perCreditPrice)
 
     res.status(200).json({
       status: 'success',
