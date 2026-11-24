@@ -102,7 +102,7 @@ The user reviews the diff (`git diff`), commits, and then asks for the next step
 - [x] 5.3 coach and course handlers → `coachController.js` and `courseController.js`. Run `test:m4` and `test:m5`, then stop for the user to review and commit.
 
 **Phase 6: Cleanup**
-- [ ] 6.1 Remove `.gitkeep` files from folders that now have content, and remove any `pool` imports that are no longer used. Run the grep checks below and the full `npm test`, then stop for the user to review and commit. Suggested subject: `chore(backend): remove placeholders and unused imports`
+- [x] 6.1 Remove `.gitkeep` files from folders that now have content, and remove any `pool` imports that are no longer used. Run the grep checks below and the full `npm test`, then stop for the user to review and commit. Suggested subject: `chore(backend): remove placeholders and unused imports`
 
 ## Verification
 1. Run `npm run db:reset`, then `npm --prefix backend run dev` (server on :8080).
