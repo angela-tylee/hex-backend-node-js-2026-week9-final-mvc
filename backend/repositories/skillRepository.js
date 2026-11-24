@@ -19,4 +19,17 @@ function deleteById(skillId, db = pool) {
   return db.query('DELETE FROM skill WHERE id = $1', [skillId])
 }
 
-module.exports = { findAll, findIdByName, insert, deleteById }
+/** 存在性檢查：單一技能 id */
+function findIdById(skillId, db = pool) {
+  return db.query('SELECT id FROM skill WHERE id = $1', [skillId])
+}
+
+/** 存在性檢查：一批技能 id，回傳實際存在的那些（比對 rowCount 即可） */
+function findIdsByIds(skillIds, db = pool) {
+  return db.query(
+    'SELECT id FROM skill WHERE id = ANY($1::uuid[])',
+    [skillIds]
+  )
+}
+
+module.exports = { findAll, findIdByName, insert, deleteById, findIdById, findIdsByIds }

@@ -36,4 +36,20 @@ function deleteById(creditPackageId, db = pool) {
   ])
 }
 
-module.exports = { findAll, findIdByName, insert, findCreditAndPriceById, deleteById }
+/** 月營收用：全部方案的總價與總堂數（沒有方案時皆為 0） */
+function sumPriceAndCredits(db = pool) {
+  return db.query(
+    `SELECT COALESCE(SUM(price), 0) AS total_price,
+              COALESCE(SUM(credit_amount), 0) AS total_credits
+         FROM credit_package`
+  )
+}
+
+module.exports = {
+  findAll,
+  findIdByName,
+  insert,
+  findCreditAndPriceById,
+  deleteById,
+  sumPriceAndCredits,
+}

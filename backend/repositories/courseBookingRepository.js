@@ -30,4 +30,20 @@ function findScheduleByUserId(userId, db = pool) {
   )
 }
 
-module.exports = { countActiveByUserId, findScheduleByUserId }
+/** 月營收用：某教練課程在 [rangeStart, rangeEnd) 內、未取消的報名數與不重複學員數 */
+function countActiveForCoachInRange(coachUserId, rangeStart, rangeEnd, db = pool) {
+  return db.query(
+    `SELECT
+         COUNT(*) AS booking_count,
+         COUNT(DISTINCT cb.user_id) AS participants
+         FROM course_booking cb
+         JOIN course c ON c.id = cb.course_id
+        WHERE c.user_id = $1
+          AND cb.cancelled_at IS NULL
+          AND cb.created_at >= $2
+          AND cb.created_at < $3`,
+    [coachUserId, rangeStart, rangeEnd]
+  )
+}
+
+module.exports = { countActiveByUserId, findScheduleByUserId, countActiveForCoachInRange }

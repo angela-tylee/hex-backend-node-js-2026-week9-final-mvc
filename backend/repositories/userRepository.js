@@ -49,6 +49,20 @@ function updatePassword(userId, passwordHash, db = pool) {
   )
 }
 
+/** 升級教練前檢查：使用者是否存在、是否已是教練 */
+function findRoleById(userId, db = pool) {
+  return db.query(
+    'SELECT id, name, role FROM users WHERE id = $1',
+    [userId]
+  )
+}
+
+function updateRoleToCoach(userId, db = pool) {
+  return db.query("UPDATE users SET role = 'COACH', updated_at = now() WHERE id = $1", [
+    userId,
+  ])
+}
+
 module.exports = {
   findAuthById,
   findIdByEmail,
@@ -57,4 +71,6 @@ module.exports = {
   updateName,
   findPasswordById,
   updatePassword,
+  findRoleById,
+  updateRoleToCoach,
 }

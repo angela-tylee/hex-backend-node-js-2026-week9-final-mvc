@@ -91,7 +91,7 @@ The user reviews the diff (`git diff`), commits, and then asks for the next step
 - [x] 3.3 `middlewares/auth.js` users lookup → `userRepository.findAuthById`. Run `npm test`, then stop for the user to review and commit.
 
 **Phase 4: M3/M6 (admin coach, the largest file)**
-- [ ] 4.1 adminCoach.js SQL → `coachRepository.js` and `courseRepository.js`, with the transaction `client` passed through. Run `test:m3` and `test:m6`, then stop for the user to review and commit.
+- [x] 4.1 adminCoach.js SQL → `coachRepository.js` and `courseRepository.js`, with the transaction `client` passed through. Run `test:m3` and `test:m6`, then stop for the user to review and commit.
 - [ ] 4.2 `getSkillIds` → `services/coachSkillService.js`. Run `test:m3`, then stop for the user to review and commit.
 - [ ] 4.3 Revenue month range, per-credit price and floor rule → `services/revenueService.js`. Run `test:m6`, then stop for the user to review and commit.
 - [ ] 4.4 adminCoach handlers → `adminCoachController.js`, keeping the route order (`POST /:userId` last). Run `test:m3` and `test:m6`, then stop for the user to review and commit.

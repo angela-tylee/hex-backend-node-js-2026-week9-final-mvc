@@ -1,6 +1,13 @@
 const express = require('express')
 
 const { pool } = require('../db/pool')
+const coachRepository = require('../repositories/coachRepository')
+const coachSkillRepository = require('../repositories/coachSkillRepository')
+const courseRepository = require('../repositories/courseRepository')
+const courseBookingRepository = require('../repositories/courseBookingRepository')
+const creditPackageRepository = require('../repositories/creditPackageRepository')
+const skillRepository = require('../repositories/skillRepository')
+const userRepository = require('../repositories/userRepository')
 const { authenticate, requireCoach } = require('../middlewares/auth')
 const {
   isUuid,
@@ -16,14 +23,7 @@ const router = express.Router()
 
 /** 取出某教練綁定的技能 id 清單（uuid 字串陣列，未設定時為空陣列） */
 async function getSkillIds(coachId) {
-  const { rows } = await pool.query(
-    `SELECT cs.skill_id
-       FROM coach_skill cs
-       JOIN skill s ON s.id = cs.skill_id
-      WHERE cs.coach_id = $1
-      ORDER BY s.created_at ASC`,
-    [coachId]
-  )
+  const { rows } = await coachSkillRepository.findSkillIdsByCoachId(coachId)
   return rows.map((r) => r.skill_id)
 }
 
@@ -34,11 +34,7 @@ async function getSkillIds(coachId) {
 // GET /api/admin/coaches：教練查看自己的後台資料（含技能清單）
 router.get('/', authenticate, requireCoach, async (req, res, next) => {
   try {
-    const { rows } = await pool.query(
-      `SELECT id, experience_years, description, profile_image_url
-         FROM coach WHERE user_id = $1`,
-      [req.user.id]
-    )
+    const { rows } = await coachRepository.findProfileByUserId(req.user.id)
     if (rows.length === 0) {
       return res.status(404).json({ status: 'failed', message: '找不到教練資料' })
     }
@@ -81,39 +77,27 @@ router.put('/', authenticate, requireCoach, async (req, res, next) => {
     }
 
     const uniqueSkillIds = [...new Set(skillIds)]
-    const skillCheck = await client.query(
-      'SELECT id FROM skill WHERE id = ANY($1::uuid[])',
-      [uniqueSkillIds]
-    )
+    const skillCheck = await skillRepository.findIdsByIds(uniqueSkillIds, client)
     if (skillCheck.rowCount !== uniqueSkillIds.length) {
       return res.status(400).json({ status: 'failed', message: FIELD_ERROR })
     }
 
-    const coachRes = await client.query('SELECT id FROM coach WHERE user_id = $1', [
-      req.user.id,
-    ])
+    const coachRes = await coachRepository.findIdByUserId(req.user.id, client)
     if (coachRes.rowCount === 0) {
       return res.status(404).json({ status: 'failed', message: '找不到教練資料' })
     }
     const coachId = coachRes.rows[0].id
 
     await client.query('BEGIN')
-    const { rows } = await client.query(
-      `UPDATE coach
-          SET experience_years = $1,
-              description = $2,
-              profile_image_url = $3,
-              updated_at = now()
-        WHERE id = $4
-        RETURNING id, experience_years, description, profile_image_url`,
-      [experienceYears, description.trim(), profileImageUrl.trim(), coachId]
+    const { rows } = await coachRepository.updateProfile(
+      coachId,
+      experienceYears,
+      description.trim(),
+      profileImageUrl.trim(),
+      client
     )
-    await client.query('DELETE FROM coach_skill WHERE coach_id = $1', [coachId])
-    await client.query(
-      `INSERT INTO coach_skill (coach_id, skill_id)
-       SELECT $1, UNNEST($2::uuid[])`,
-      [coachId, uniqueSkillIds]
-    )
+    await coachSkillRepository.deleteByCoachId(coachId, client)
+    await coachSkillRepository.insertMany(coachId, uniqueSkillIds, client)
     await client.query('COMMIT')
 
     const coach = rows[0]
@@ -142,18 +126,7 @@ router.put('/', authenticate, requireCoach, async (req, res, next) => {
 // GET /api/admin/coaches/courses：教練本人開設的全部課程
 router.get('/courses', authenticate, requireCoach, async (req, res, next) => {
   try {
-    const { rows } = await pool.query(
-      `SELECT id, name, start_at, end_at, max_participants, meeting_url,
-              CASE
-                WHEN now() < start_at THEN '尚未開始'
-                WHEN now() > end_at THEN '已結束'
-                ELSE '進行中'
-              END AS status
-         FROM course
-        WHERE user_id = $1
-        ORDER BY created_at DESC`,
-      [req.user.id]
-    )
+    const { rows } = await courseRepository.findAllByCoachUserId(req.user.id)
     res.status(200).json({
       status: 'success',
       data: rows.map((row) => ({
@@ -190,27 +163,21 @@ router.post('/courses', authenticate, requireCoach, async (req, res, next) => {
       meeting_url: meetingUrl,
     } = req.body
 
-    const skillCheck = await pool.query('SELECT id FROM skill WHERE id = $1', [skillId])
+    const skillCheck = await skillRepository.findIdById(skillId)
     if (skillCheck.rowCount === 0) {
       return res.status(400).json({ status: 'failed', message: FIELD_ERROR })
     }
 
-    const { rows } = await pool.query(
-      `INSERT INTO course
-         (user_id, skill_id, name, description, start_at, end_at, max_participants, meeting_url)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-       RETURNING *`,
-      [
-        req.user.id,
-        skillId,
-        name.trim(),
-        description.trim(),
-        startAt,
-        endAt,
-        maxParticipants,
-        meetingUrl.trim(),
-      ]
-    )
+    const { rows } = await courseRepository.insert({
+      userId: req.user.id,
+      skillId,
+      name: name.trim(),
+      description: description.trim(),
+      startAt,
+      endAt,
+      maxParticipants,
+      meetingUrl: meetingUrl.trim(),
+    })
 
     res.status(201).json({
       status: 'success',
@@ -229,14 +196,7 @@ router.get('/courses/:courseId', authenticate, async (req, res, next) => {
       return res.status(400).json({ status: 'failed', message: '課程不存在' })
     }
 
-    const { rows } = await pool.query(
-      `SELECT c.id, c.name, c.description, c.start_at, c.end_at,
-              c.max_participants, c.meeting_url, c.skill_id, s.name AS skill_name
-         FROM course c
-         JOIN skill s ON s.id = c.skill_id
-        WHERE c.id = $1 AND c.user_id = $2`,
-      [courseId, req.user.id]
-    )
+    const { rows } = await courseRepository.findDetailByIdAndUserId(courseId, req.user.id)
     if (rows.length === 0) {
       return res.status(400).json({ status: 'failed', message: '課程不存在' })
     }
@@ -284,37 +244,27 @@ router.put('/courses/:courseId', authenticate, async (req, res, next) => {
       meeting_url: meetingUrl,
     } = req.body
 
-    const owned = await pool.query(
-      'SELECT id FROM course WHERE id = $1 AND user_id = $2',
-      [courseId, req.user.id]
-    )
+    const owned = await courseRepository.findIdByIdAndUserId(courseId, req.user.id)
     if (owned.rowCount === 0) {
       return res.status(400).json({ status: 'failed', message: '課程不存在' })
     }
 
-    const skillCheck = await pool.query('SELECT id FROM skill WHERE id = $1', [skillId])
+    const skillCheck = await skillRepository.findIdById(skillId)
     if (skillCheck.rowCount === 0) {
       return res.status(400).json({ status: 'failed', message: FIELD_ERROR })
     }
 
-    const { rows } = await pool.query(
-      `UPDATE course
-          SET skill_id = $1, name = $2, description = $3, start_at = $4,
-              end_at = $5, max_participants = $6, meeting_url = $7, updated_at = now()
-        WHERE id = $8 AND user_id = $9
-        RETURNING *`,
-      [
-        skillId,
-        name.trim(),
-        description.trim(),
-        startAt,
-        endAt,
-        maxParticipants,
-        meetingUrl.trim(),
-        courseId,
-        req.user.id,
-      ]
-    )
+    const { rows } = await courseRepository.update({
+      courseId,
+      userId: req.user.id,
+      skillId,
+      name: name.trim(),
+      description: description.trim(),
+      startAt,
+      endAt,
+      maxParticipants,
+      meetingUrl: meetingUrl.trim(),
+    })
 
     res.status(200).json({
       status: 'success',
@@ -352,27 +302,16 @@ router.get('/revenue', authenticate, requireCoach, async (req, res, next) => {
     const rangeEnd = new Date(now.getFullYear(), monthIndex + 1, 1, 0, 0, 0, 0)
 
     // 當月、未取消、且課程屬於本教練的報名
-    const bookingRes = await pool.query(
-      `SELECT
-         COUNT(*) AS booking_count,
-         COUNT(DISTINCT cb.user_id) AS participants
-         FROM course_booking cb
-         JOIN course c ON c.id = cb.course_id
-        WHERE c.user_id = $1
-          AND cb.cancelled_at IS NULL
-          AND cb.created_at >= $2
-          AND cb.created_at < $3`,
-      [req.user.id, rangeStart, rangeEnd]
+    const bookingRes = await courseBookingRepository.countActiveForCoachInRange(
+      req.user.id,
+      rangeStart,
+      rangeEnd
     )
     const bookingCount = Number(bookingRes.rows[0].booking_count)
     const participants = Number(bookingRes.rows[0].participants)
 
     // 單堂均價：全部方案一起算
-    const pkgRes = await pool.query(
-      `SELECT COALESCE(SUM(price), 0) AS total_price,
-              COALESCE(SUM(credit_amount), 0) AS total_credits
-         FROM credit_package`
-    )
+    const pkgRes = await creditPackageRepository.sumPriceAndCredits()
     const totalCredits = Number(pkgRes.rows[0].total_credits)
     const perCreditPrice =
       totalCredits > 0 ? Number(pkgRes.rows[0].total_price) / totalCredits : 0
@@ -422,10 +361,7 @@ router.post('/:userId', async (req, res, next) => {
       return res.status(400).json({ status: 'failed', message: '使用者不存在' })
     }
 
-    const userRes = await client.query(
-      'SELECT id, name, role FROM users WHERE id = $1',
-      [userId]
-    )
+    const userRes = await userRepository.findRoleById(userId, client)
     if (userRes.rowCount === 0) {
       return res.status(400).json({ status: 'failed', message: '使用者不存在' })
     }
@@ -435,15 +371,14 @@ router.post('/:userId', async (req, res, next) => {
     }
 
     await client.query('BEGIN')
-    const coachRes = await client.query(
-      `INSERT INTO coach (user_id, experience_years, description, profile_image_url)
-       VALUES ($1, $2, $3, $4)
-       RETURNING id, user_id, experience_years, description, profile_image_url, created_at, updated_at`,
-      [userId, experienceYears, description.trim(), hasImage ? profileImageUrl.trim() : null]
-    )
-    await client.query("UPDATE users SET role = 'COACH', updated_at = now() WHERE id = $1", [
+    const coachRes = await coachRepository.insert(
       userId,
-    ])
+      experienceYears,
+      description.trim(),
+      hasImage ? profileImageUrl.trim() : null,
+      client
+    )
+    await userRepository.updateRoleToCoach(userId, client)
     await client.query('COMMIT')
 
     res.status(201).json({
