@@ -3,6 +3,14 @@ const { pool } = require('../db/pool')
 // 資料存取層：只放 users 資料表的 SQL，回傳 pg 原始結果（rows / rowCount）
 // 最後一個參數 db 預設為 pool，交易中可傳入 client
 
+/** 驗證 token 用：依 id 取出要掛在 req.user 的欄位（不含密碼） */
+function findAuthById(userId, db = pool) {
+  return db.query(
+    'SELECT id, name, email, role FROM users WHERE id = $1',
+    [userId]
+  )
+}
+
 /** 註冊時檢查 email 是否已被使用 */
 function findIdByEmail(email, db = pool) {
   return db.query('SELECT id FROM users WHERE email = $1', [email])
@@ -42,6 +50,7 @@ function updatePassword(userId, passwordHash, db = pool) {
 }
 
 module.exports = {
+  findAuthById,
   findIdByEmail,
   insert,
   findForLoginByEmail,
