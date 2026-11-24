@@ -83,7 +83,7 @@ The user reviews the diff (`git diff`), commits, and then asks for the next step
 
 **Phase 2: M0/M1 (healthcheck, skill, credit package)**
 - [x] 2.1 SQL → `repositories/skillRepository.js`, `creditPackageRepository.js`, `creditPurchaseRepository.js` (the purchase INSERT). Healthcheck's `SELECT 1` stays as `pool.query` in its controller, because it is an infrastructure ping. Run `test:smoke` and `test:m1`, then stop for the user to review and commit. Suggested subject: `refactor(backend): extract skill and credit-package SQL into repositories`
-- [ ] 2.2 Handlers → `controllers/healthcheckController.js`, `skillController.js`, `creditPackageController.js`; the routes keep only wiring. Run `test:smoke`, `test:m1` and `test:m5` (purchase), then stop for the user to review and commit. Suggested subject: `refactor(backend): move skill and credit-package handlers into controllers`
+- [x] 2.2 Handlers → `controllers/healthcheckController.js`, `skillController.js`, `creditPackageController.js`; the routes keep only wiring. Run `test:smoke`, `test:m1` and `test:m5` (purchase), then stop for the user to review and commit. Suggested subject: `refactor(backend): move skill and credit-package handlers into controllers`
 
 **Phase 3: M2 (user)**
 - [ ] 3.1 user.js SQL → `userRepository.js`; user credit and booking queries → `creditPurchaseRepository` and `courseBookingRepository`. Run `test:m2` and `test:m5`, then stop for the user to review and commit.
