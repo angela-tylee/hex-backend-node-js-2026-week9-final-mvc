@@ -3,7 +3,7 @@ const express = require('express')
 const { pool } = require('../db/pool')
 const courseRepository = require('../repositories/courseRepository')
 const courseBookingRepository = require('../repositories/courseBookingRepository')
-const creditPurchaseRepository = require('../repositories/creditPurchaseRepository')
+const { getCreditRemain } = require('../services/creditService')
 const { authenticate } = require('../middlewares/auth')
 const { isUuid } = require('../utils/validators')
 
@@ -63,9 +63,7 @@ router.post('/:courseId', authenticate, async (req, res, next) => {
     }
 
     // ③ 剩餘堂數 ＝ Σ購買堂數 − 未取消報名數
-    const purchaseRes = await creditPurchaseRepository.sumCreditsByUserId(req.user.id, client)
-    const usageRes = await courseBookingRepository.countActiveByUserId(req.user.id, client)
-    const creditRemain = Number(purchaseRes.rows[0].total) - Number(usageRes.rows[0].used)
+    const { creditRemain } = await getCreditRemain(req.user.id, client)
     if (creditRemain <= 0) {
       await client.query('ROLLBACK')
       return res.status(400).json({ status: 'failed', message: '已無可使用堂數' })

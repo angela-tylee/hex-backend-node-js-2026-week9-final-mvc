@@ -3,6 +3,7 @@ const bcrypt = require('bcryptjs')
 const userRepository = require('../repositories/userRepository')
 const creditPurchaseRepository = require('../repositories/creditPurchaseRepository')
 const courseBookingRepository = require('../repositories/courseBookingRepository')
+const { getCreditRemain } = require('../services/creditService')
 const { signToken } = require('../utils/jwt')
 const {
   isNonEmptyString,
@@ -172,12 +173,8 @@ async function getCreditPackages(req, res, next) {
 // GET /api/users/courses：本人的課表與剩餘堂數（M5）
 async function getCourses(req, res, next) {
   try {
-    const purchaseRes = await creditPurchaseRepository.sumCreditsByUserId(req.user.id)
-    const usageRes = await courseBookingRepository.countActiveByUserId(req.user.id)
+    const { creditRemain, creditUsage } = await getCreditRemain(req.user.id)
     const bookingRes = await courseBookingRepository.findScheduleByUserId(req.user.id)
-
-    const creditUsage = Number(usageRes.rows[0].used)
-    const creditRemain = Number(purchaseRes.rows[0].total) - creditUsage
 
     res.status(200).json({
       status: 'success',
