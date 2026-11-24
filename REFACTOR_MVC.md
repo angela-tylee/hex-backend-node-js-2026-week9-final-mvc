@@ -86,7 +86,7 @@ The user reviews the diff (`git diff`), commits, and then asks for the next step
 - [x] 2.2 Handlers → `controllers/healthcheckController.js`, `skillController.js`, `creditPackageController.js`; the routes keep only wiring. Run `test:smoke`, `test:m1` and `test:m5` (purchase), then stop for the user to review and commit. Suggested subject: `refactor(backend): move skill and credit-package handlers into controllers`
 
 **Phase 3: M2 (user)**
-- [ ] 3.1 user.js SQL → `userRepository.js`; user credit and booking queries → `creditPurchaseRepository` and `courseBookingRepository`. Run `test:m2` and `test:m5`, then stop for the user to review and commit.
+- [x] 3.1 user.js SQL → `userRepository.js`; user credit and booking queries → `creditPurchaseRepository` and `courseBookingRepository`. Run `test:m2` and `test:m5`, then stop for the user to review and commit.
 - [ ] 3.2 user handlers → `userController.js`. Run `test:m2` and `test:m5`, then stop for the user to review and commit.
 - [ ] 3.3 `middlewares/auth.js` users lookup → `userRepository.findAuthById`. Run `npm test`, then stop for the user to review and commit.
 

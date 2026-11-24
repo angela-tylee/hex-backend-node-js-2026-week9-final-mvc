@@ -11,4 +11,27 @@ function insert(userId, creditPackageId, purchasedCredits, pricePaid, db = pool)
   )
 }
 
-module.exports = { insert }
+/** 會員的購買紀錄（新到舊），附方案名稱 */
+function findHistoryByUserId(userId, db = pool) {
+  return db.query(
+    `SELECT cp.name,
+              pur.purchased_credits,
+              pur.price_paid,
+              pur.created_at AS purchase_at
+         FROM credit_purchase pur
+         JOIN credit_package cp ON cp.id = pur.credit_package_id
+        WHERE pur.user_id = $1
+        ORDER BY pur.created_at DESC`,
+    [userId]
+  )
+}
+
+/** 會員累計購買堂數（沒有購買時為 0） */
+function sumCreditsByUserId(userId, db = pool) {
+  return db.query(
+    'SELECT COALESCE(SUM(purchased_credits), 0) AS total FROM credit_purchase WHERE user_id = $1',
+    [userId]
+  )
+}
+
+module.exports = { insert, findHistoryByUserId, sumCreditsByUserId }
