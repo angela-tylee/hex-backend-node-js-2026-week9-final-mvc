@@ -1,4 +1,4 @@
-const { pool } = require('../db/pool')
+const userRepository = require('../repositories/userRepository')
 const { verifyToken } = require('../utils/jwt')
 
 /**
@@ -28,10 +28,7 @@ async function authenticate(req, res, next) {
       return res.status(401).json({ status: 'failed', message: '無效的 token' })
     }
 
-    const { rows } = await pool.query(
-      'SELECT id, name, email, role FROM users WHERE id = $1',
-      [payload.id]
-    )
+    const { rows } = await userRepository.findAuthById(payload.id)
     if (rows.length === 0) {
       return res.status(401).json({ status: 'failed', message: '無效的 token' })
     }
